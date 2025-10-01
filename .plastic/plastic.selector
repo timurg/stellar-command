@@ -1,0 +1,4 @@
+repository "stellar-command/stellar-command@10171037930609@cloud"
+  path "/"
+    br "/main"
+    co "/main"

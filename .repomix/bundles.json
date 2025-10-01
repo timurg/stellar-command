@@ -1,0 +1,39 @@
+{
+  "bundles": {
+    "ScriptCore-631": {
+      "name": "ScriptCore",
+      "created": "2025-09-28T11:42:38.434Z",
+      "lastUsed": "2025-09-28T11:55:24.841Z",
+      "tags": [],
+      "files": [
+        "Assets/Scripts/Core",
+        "Assets/Scripts/Entities"
+      ]
+    },
+    "scripts-864": {
+      "name": "scripts",
+      "created": "2025-09-30T13:42:16.688Z",
+      "lastUsed": "2025-10-01T06:50:29.921Z",
+      "tags": [],
+      "files": [
+        "Assets/Scripts/Core/EnemyPoolManager.cs",
+        "Assets/Scripts/Core/Entity.cs",
+        "Assets/Scripts/Core/Ship.cs",
+        "Assets/Scripts/Core/Weapon.cs",
+        "Assets/Scripts/Entities/Carrier.cs",
+        "Assets/Scripts/Entities/Enemy.cs",
+        "Assets/Scripts/Entities/Interceptor.cs"
+      ]
+    },
+    "camera-876": {
+      "name": "camera",
+      "created": "2025-10-01T05:44:41.686Z",
+      "lastUsed": "2025-10-01T05:44:47.719Z",
+      "tags": [],
+      "files": [
+        "Assets/CameraSettings.cs",
+        "Assets/CameraFollow.cs"
+      ]
+    }
+  }
+}

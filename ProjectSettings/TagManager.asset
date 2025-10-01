@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags: []
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - Background
+  - FarStars
+  - MidStars
+  - NearStars
+  - GameObjects
+  - HUD
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 4125921365
+    locked: 0
+  - name: FarStars
+    uniqueID: 3965888277
+    locked: 0
+  - name: MidStars
+    uniqueID: 1906420823
+    locked: 0
+  - name: NearStars
+    uniqueID: 3607442101
+    locked: 0
+  - name: GameObjects
+    uniqueID: 47965155
+    locked: 0
+  - name: HUD
+    uniqueID: 3072817803
+    locked: 0
+  m_RenderingLayers:
+  - Default
