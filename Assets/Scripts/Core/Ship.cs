@@ -8,11 +8,9 @@ public abstract class Ship : Entity
 {
     [SerializeField] protected float shields = 500f; // Щиты
     [SerializeField] protected float maxShields = 500f; // Максимум щитов
-    [SerializeField] protected float acceleration = 200f; // Ускорение
-    [SerializeField] protected float maxSpeed = 100f; // Максимальная скорость
-    [SerializeField] protected bool rotateToDirection = true; // Флаг для ротации (доступен в наследниках)
+
     protected List<Weapon> weapons = new List<Weapon>(); // Набор оружия
-    protected Entity target; // Цель
+    [SerializeField]  protected Entity target; // Цель
     public enum ShipState
     {
         HANGAR,    // В ангаре (refuel/repair)
@@ -25,7 +23,6 @@ public abstract class Ship : Entity
     protected override void Awake()
     {
         base.Awake();
-        IgnoreShipCollisions(); // Настройка игнорирования коллизий между кораблями
         // Инициализация оружия (добавь в Inspector или коде)
     }
     protected void Start()
@@ -40,24 +37,6 @@ public abstract class Ship : Entity
         ShootAtTarget(); // Вызов общего метода стрельбы
     }
     // Обновлённый метод для движения с ротацией
-    protected void Move(Vector2 direction)
-    {
-        if (direction.magnitude > 0) // Проверяем, есть ли направление
-        {
-            Vector2 force = direction.normalized * acceleration;
-            Rigidbody.AddForce(force * Time.fixedDeltaTime, ForceMode2D.Impulse); // Используем fixedDeltaTime
-            if (Rigidbody.linearVelocity.magnitude > maxSpeed)
-            {
-                Rigidbody.linearVelocity = Rigidbody.linearVelocity.normalized * maxSpeed;
-            }
-            // Ротация в сторону движения, если включена
-            if (rotateToDirection && Rigidbody.linearVelocity.magnitude > 0.1f)
-            {
-                float targetAngle = Mathf.Atan2(Rigidbody.linearVelocity.y, Rigidbody.linearVelocity.x) * Mathf.Rad2Deg - 90f; // -90f для носа вверх
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, 0, targetAngle), 0.2f);
-            }
-        }
-    }
     public void SetTarget(Entity newTarget)
     {
         target = newTarget;

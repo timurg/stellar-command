@@ -5,10 +5,15 @@ public abstract class Entity : MonoBehaviour
 {
     [SerializeField] protected float mass = 1f; // Масса (для Rigidbody2D)
     [SerializeField] protected float maxHealth = 1000f; // Максимальное здоровье
+    [SerializeField] protected float maxSpeed = 100f; // Максимальная скорость
+    [SerializeField] protected float acceleration = 200f; // Ускорение
+
+    [SerializeField] protected bool rotateToDirection = true; // Флаг для ротации (доступен в наследниках)
+    [SerializeField] protected bool alive = true; // Объект жив
     protected float Health { get; set; }
-    protected Vector2 Direction { get; set; } // Направление движения (нормализованный вектор)
+    public Vector2 Direction { get; set; } // Направление движения (нормализованный вектор)
     protected Rigidbody2D Rigidbody { get; private set; }
-    protected bool Alive { get; private set; } = true; // Остаётся private set
+    
 
     protected virtual void Awake()
     {
@@ -22,24 +27,56 @@ public abstract class Entity : MonoBehaviour
         Health = maxHealth;
     }
 
-    protected virtual void FixedUpdate()
+    protected void FixedUpdate()
     {
-        if (!Alive) return;
-        if (Direction.magnitude > 0) // Движение по Direction, если не нулевое
+        if (!IsAlive()) return;
+        UpdateMovement();
+    }
+
+    // Универсальное обновление движения и ротации
+    protected virtual void UpdateMovement()
+    {
+        if (Direction.magnitude > 0)
         {
-            Rigidbody.linearVelocity = Direction.normalized * Rigidbody.linearVelocity.magnitude; // Поддерживаем скорость, меняем направление
+            Vector2 force = Direction.normalized * acceleration;
+            Rigidbody.AddForce(force * Time.fixedDeltaTime, ForceMode2D.Impulse);
+            if (Rigidbody.linearVelocity.magnitude > maxSpeed)
+            {
+                Rigidbody.linearVelocity = Rigidbody.linearVelocity.normalized * maxSpeed;
+            }
+            if (this is Carrier){
+                Debug.Log("Carrier speed: " + Rigidbody.linearVelocity.magnitude + " Direction.magnitude: " + Direction.magnitude);
+            }
+            UpdateRotation();
+        }
+        
+    }
+    protected void Move(Vector2 direction)
+    {
+        // Управление движением только через Direction
+        Direction = direction;
+    }
+
+    // Вращение по направлению движения (можно переопределять)
+    protected virtual void UpdateRotation()
+    {
+        if (Rigidbody.linearVelocity.magnitude > 0.1f)
+        {
+            float targetAngle = Mathf.Atan2(Rigidbody.linearVelocity.y, Rigidbody.linearVelocity.x) * Mathf.Rad2Deg - 90f;
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, 0, targetAngle), 0.2f);
         }
     }
 
     protected virtual void Update()
     {
-        if (!Alive) return;
+        if (!IsAlive()) return;
+       // UpdateMovement();
     }
 
     public virtual void TakeDamage(float damage, bool ignoreShields = false)
     {
         Health -= damage;
-        if (Health <= 0 && Alive)
+        if (Health <= 0 && IsAlive())
         {
             SetAlive(false); // Используем метод для изменения состояния
             OnDeath();
@@ -54,8 +91,8 @@ public abstract class Entity : MonoBehaviour
     // Защищённый метод для установки Alive
     protected virtual void SetAlive(bool state)
     {
-        Alive = state;
+        alive = state;
     }
 
-    public bool IsAlive() => Alive; // Публичный метод для проверки
+    public bool IsAlive() => alive; // Публичный метод для проверки
 }

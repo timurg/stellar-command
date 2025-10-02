@@ -8,18 +8,19 @@ public abstract class Weapon : Entity
     [SerializeField] protected bool ignoresShields = false; // Игнорирует щиты (для Rocket)
     [SerializeField] protected float speed = 300f; // Скорость (для PhotonBall/Rocket)
     [SerializeField] protected float shootCooldown = 1f; // Кулдаун стрельбы для оружия
+    [SerializeField] protected float shootDistanse = 1f; //Минимальная дистанция стрельбы
     protected float shootTimer = 0f; // Таймер для управления стрельбой
-    protected Rigidbody2D rb; // Для физики движения
+
     protected override void Awake()
     {
-        rb = GetComponent<Rigidbody2D>();
-        if (rb == null)
+        base.Awake();
+        if (Rigidbody == null)
         {
             Debug.LogError("Rigidbody2D not found on Weapon! Please add it.");
             return;
         }
-        rb.bodyType = RigidbodyType2D.Kinematic; // Для управляемого движения
-        rb.gravityScale = 0;
+        Rigidbody.bodyType = RigidbodyType2D.Kinematic; // Для управляемого движения
+        Rigidbody.gravityScale = 0;
         var collider = GetComponent<Collider2D>();
         if (collider != null)
         {

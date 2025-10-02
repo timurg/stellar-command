@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.Animations;
+using Unity.VisualScripting;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(BoxCollider2D))]
@@ -9,10 +11,14 @@ using System.Linq;
 [RequireComponent(typeof(SpriteRenderer))]
 public class Carrier : Ship
 {
+    
+
     [SerializeField] private int maxInterceptors = 5; // Максимум истребителей
     [SerializeField] private GameObject interceptorPrefab; // Prefab Interceptor
     [SerializeField] private float fuelRegenRate = 20f; // Реген топлива/щитов в ангаре
     [SerializeField] private float deployCooldown = 1f; // Кулдаун деплой
+    [SerializeField] private GameObject hangarObject; // Объект ангарной точки
+    
 
     private List<Interceptor> hangar = new List<Interceptor>(); // Ангар для истребителей
     private float deployTimer = 0f;
@@ -22,6 +28,23 @@ public class Carrier : Ship
     private InputAction clickAction;
     private InputAction clickPosition;
     private Vector2 smoothInput;
+
+    protected override void UpdateRotation()
+    {
+        if (rotateToDirection)
+        {
+            if (Rigidbody.linearVelocity.magnitude > 0.1f)
+            {
+                float targetAngle = Mathf.Atan2(Rigidbody.linearVelocity.y, Rigidbody.linearVelocity.x) * Mathf.Rad2Deg - 90f;
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, 0, targetAngle), 0.2f);
+            }
+            else
+            {
+                // Если почти не движется — нос вверх
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, 0, 0f), 0.2f);
+            }
+        }
+    }
 
     protected override void Awake()
     {
@@ -55,8 +78,9 @@ public class Carrier : Ship
         }
     }
 
-    private void FixedUpdate()
+    new private void FixedUpdate()
     {
+        base.FixedUpdate();
         HandleMovement(Time.fixedDeltaTime);
         HandleHangar(Time.fixedDeltaTime);
         HandleDeploy(Time.fixedDeltaTime);
@@ -68,13 +92,6 @@ public class Carrier : Ship
         float rawY = moveVertical.ReadValue<float>();
         smoothInput = Vector2.Lerp(smoothInput, new Vector2(rawX, rawY), 0.1f);
         Vector2 direction = smoothInput.normalized; // Преобразуем в направление
-        if (clickAction.WasPerformedThisFrame())
-        {
-            Vector2 mousePos = clickPosition.ReadValue<Vector2>();
-            mousePos = Camera.main.ScreenToWorldPoint(mousePos);
-            direction = (mousePos - (Vector2)transform.position).normalized;
-            smoothInput = direction; // Сброс сглаживания при клике
-        }
         Move(direction); // Вызываем Move с направлением
         if (direction.magnitude > 0)
         {
@@ -103,8 +120,9 @@ public class Carrier : Ship
             var idleInterceptor = hangar.FirstOrDefault(s => s.GetState() == ShipState.HANGAR);
             if (idleInterceptor != null)
             {
-                idleInterceptor.Deploy(hangarPosition.position, this); // Вызов деплой
+                idleInterceptor.Deploy(hangarObject.transform.position, this); // Вызов деплой
                 deployTimer = deployCooldown;
+                Debug.Log("Deployed an interceptor. Remaining in hangar: " + hangar.Count(s => s.GetState() == ShipState.HANGAR) + "/" + maxInterceptors);
             }
         }
     }

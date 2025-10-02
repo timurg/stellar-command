@@ -298,12 +298,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   mass: 1
   maxHealth: 1000
+  maxSpeed: 5
+  acceleration: 10
+  rotateToDirection: 1
   shields: 500
   maxShields: 500
-  acceleration: 10
-  maxSpeed: 5
-  rotateToDirection: 1
+  target: {fileID: 0}
   maxInterceptors: 5
+  interceptorPrefab: {fileID: 8865523311003920894, guid: 2591e3e83f9a3a84a919939ad6057a00, type: 3}
+  fuelRegenRate: 20
+  deployCooldown: 1
+  hangarObject: {fileID: 8533947757765336491}
 --- !u!114 &17157499795591201
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -50,7 +50,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0.1
   m_AngularDamping: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -180,13 +180,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   mass: 2
   maxHealth: 1000
+  maxSpeed: 6
+  acceleration: 10
+  rotateToDirection: 1
+  alive: 1
   shields: 500
   maxShields: 500
-  acceleration: 10
-  maxSpeed: 6
-  rotateToDirection: 1
+  target: {fileID: 0}
   attackDistance: 3
   spawnEdgeOffset: 10
   orbitRadiusMin: 3
   orbitRadiusMax: 10
   orbitAngularSpeed: 1
+  courseCorrectionInterval: 2
