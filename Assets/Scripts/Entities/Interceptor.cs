@@ -7,25 +7,26 @@ using UnityEngine.UIElements;
 public class Interceptor : Ship
 {
     [SerializeField] private float patrolRadius = 150f; // Радиус патруля
-    [SerializeField] private float attackRadius = 75f; // Радиус атаки
     [SerializeField] private float fuelConsumptionRate = 10f; // Расход топлива в секунду вне ангара
     [SerializeField] private float lowFuelThreshold = 20f; // Порог топлива для возврата
     [SerializeField] private float lowShieldsThreshold = 20f; // Порог щитов для возврата
 
     private Carrier carrier; // Ссылка на Carrier
-    private float fuel = 400f; // Текущее топливо
-    private float maxFuel = 100f; // Максимальное топливо
-    private float patrolAngle = 0f; // Угол патруля
-    private float orbitAngle = 0f; // Угол орбиты для атаки
+    [SerializeField] private float fuel = 100f; // Текущее топливо
+    [SerializeField] private float maxFuel = 100f; // Максимальное топливо
+    [SerializeField] private float patrolAngle = 0f; // Угол патруля
+    [SerializeField] private float orbitAngle = 0f; // Угол орбиты для атаки
 
     protected override void Awake()
     {
         base.Awake();
+        /*
         carrier = FindFirstObjectByType<Carrier>();
         if (carrier == null)
         {
             Debug.LogError("Interceptor: No Carrier found in scene!");
         }
+        */
         SetState(ShipState.HANGAR); // Начальное состояние
         fuel = maxFuel; // Полное топливо
         orbitAngle = Random.Range(0f, 2f * Mathf.PI); // Случайный стартовый угол
@@ -45,10 +46,10 @@ public class Interceptor : Ship
         switch (GetState())
         {
             case ShipState.HANGAR:
-                transform.position = carrier.transform.position; // В ангаре
+                transform.position = carrier.hangarObject.transform.position; // В ангаре
                 //fuel = Mathf.Min(maxFuel, fuel + carrier.fuelRegenRate * deltaTime); // Реген топлива
                 //shields = Mathf.Min(maxShields, shields + carrier.fuelRegenRate * deltaTime / 2); // Реген щитов
-                if (SelectTarget() != null) // Проверка наличия цели
+                if (SelectTarget() != null && Fuel >= maxFuel) // Проверка наличия цели
                 {
                     SetState(ShipState.PATROL); // Вылет при появлении цели
                 }
@@ -79,13 +80,12 @@ public class Interceptor : Ship
         {
             SetState(ShipState.RETURN); // Возврат при низком топливе/щитах
         }
-        Entity newTarget = SelectTarget();
+        var newTarget = SelectTarget();
         if (newTarget != null)
         {
             SetTarget(newTarget); // Устанавливаем цель
             SetState(ShipState.ATTACK); // Переход в атаку
         }
-        Debug.Log($"Patrolling. Fuel: {fuel}, Shields: {shields}, Position: {transform.position}, Direction: {Direction}");
     }
 
     private void Attack(float deltaTime)
@@ -98,14 +98,13 @@ public class Interceptor : Ship
         Vector2 closestPoint = target.GetComponent<Collider2D>().ClosestPoint(transform.position);
         Vector2 direction = (closestPoint - (Vector2)transform.position).normalized;
         float distanceToTarget = Vector2.Distance((Vector2)transform.position, closestPoint);
-        if (distanceToTarget > attackRadius)
+        if (!AllWeaponsInRange(distanceToTarget))
         {
             Move(direction); // Подход к цели
         }
         else
         {
-            //orbitAngle += orbitAngularSpeed * deltaTime; // Орбитальное движение вокруг цели
-            Vector2 offset = new Vector2(Mathf.Cos(orbitAngle), Mathf.Sin(orbitAngle)) * attackRadius;
+            Vector2 offset = new Vector2(Mathf.Cos(orbitAngle), Mathf.Sin(orbitAngle)) * MinAttackDistance;
             Vector2 desiredPosition = (Vector2)target.transform.position + offset;
             Vector2 orbitDirection = (desiredPosition - (Vector2)transform.position).normalized;
             Move(orbitDirection); // Движение по орбите
@@ -116,25 +115,24 @@ public class Interceptor : Ship
         {
             SetState(ShipState.RETURN); // Возврат при низком топливе/щитах
         }
-        Debug.Log($"Attacking. Fuel: {fuel}, Shields: {shields}, Position: {transform.position}, Direction: {Direction}");
     }
 
     private void Return(float deltaTime)
     {
-        Vector2 direction = ((Vector2)carrier.transform.position - (Vector2)transform.position).normalized;
-        Move(direction); // Движение назад к Carrier
-        if (Vector2.Distance(transform.position, carrier.transform.position) < 1f) // Порог возврата
+        Vector2 direction = ((Vector2)carrier.hangarObject.transform.position - (Vector2)transform.position).normalized;
+        Move(direction);
+        if (Vector2.Distance(transform.position, carrier.hangarObject.transform.position) < 1f) // Порог возврата
         {
             SetState(ShipState.HANGAR); // В ангар
         }
-        Debug.Log($"Returning. Fuel: {fuel}, Shields: {shields}, Position: {transform.position}, Direction: {Direction}");
     }
 
-    protected override Entity SelectTarget()
+    protected override SpaceObject SelectTarget()
     {
+        if (target != null && target.IsAlive()) return target;
         // Выбираем ближайшего врага
         Enemy[] enemies = FindObjectsByType<Enemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        Entity closestTarget = null;
+        SpaceObject closestTarget = null;
         float closestDistance = Mathf.Infinity;
         foreach (var enemy in enemies)
         {
@@ -148,7 +146,6 @@ public class Interceptor : Ship
                 }
             }
         }
-        Debug.Log($"Selected target: {(closestTarget != null ? closestTarget.name : "None")}");
         return closestTarget;
     }
 
@@ -173,4 +170,15 @@ public class Interceptor : Ship
         get { return fuel; }
         set { fuel = Mathf.Clamp(value, 0, maxFuel); }
     }
+
+    public Carrier Carrier
+    {
+        get { return carrier; }
+        set { carrier = value; }
+    }
+
+    public float MaxFuel
+    {
+        get { return maxFuel; }
+    }   
 }

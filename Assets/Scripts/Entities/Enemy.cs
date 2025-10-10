@@ -5,7 +5,6 @@ using UnityEngine;
 [RequireComponent(typeof(SpriteRenderer))]
 public class Enemy : Ship
 {
-    [SerializeField] private float attackDistance = 3f; // Уменьшенная дистанция атаки
     [SerializeField] private float spawnEdgeOffset = 10f; // Смещение от краёв экрана при спавне
     [SerializeField] private float orbitRadiusMin = 2f; // Минимальный радиус орбиты
     [SerializeField] private float orbitRadiusMax = 5f; // Максимальный радиус орбиты
@@ -31,13 +30,13 @@ public class Enemy : Ship
         if (target == null || !IsAlive()) return;
 
         Collider2D targetCollider = target.GetComponent<Collider2D>();
-        Vector2 closestPoint = targetCollider.ClosestPoint(transform.position); // Ближайшая точка на коллайдере цели
-        float distanceToTarget = Vector2.Distance((Vector2)transform.position, closestPoint); // Расстояние до ближайшей точки
+        Vector2 closestPoint = targetCollider.ClosestPoint(transform.position);
+        float distanceToTarget = Vector2.Distance((Vector2)transform.position, closestPoint);
 
-        if (distanceToTarget > attackDistance)
+        // Если не все орудия могут атаковать — сближаемся
+        if (!AllWeaponsInRange(distanceToTarget))
         {
-            // Лететь к цели
-            Direction = (closestPoint - (Vector2)transform.position).normalized; // Устанавливаем направление
+            Direction = (closestPoint - (Vector2)transform.position).normalized;
         }
         else
         {
@@ -45,28 +44,30 @@ public class Enemy : Ship
             courseCorrectionTimer -= Time.deltaTime;
             if (courseCorrectionTimer <= 0f)
             {
-                orbitAngle += orbitAngularSpeed * Time.deltaTime; // Обновляем угол
+                orbitAngle += orbitAngularSpeed * Time.deltaTime;
                 Vector2 offset = new Vector2(Mathf.Cos(orbitAngle), Mathf.Sin(orbitAngle)) * orbitRadius;
                 Vector2 desiredPosition = (Vector2)target.transform.position + offset;
                 Vector2 rawOrbitDirection = (desiredPosition - (Vector2)transform.position).normalized;
-                smoothedOrbitDirection = Vector2.Lerp(smoothedOrbitDirection, rawOrbitDirection, 0.1f); // Сглаживание
-                courseCorrectionTimer = courseCorrectionInterval; // Сбрасываем таймер
+                smoothedOrbitDirection = Vector2.Lerp(smoothedOrbitDirection, rawOrbitDirection, 0.1f);
+                courseCorrectionTimer = courseCorrectionInterval;
             }
-            Direction = smoothedOrbitDirection; // Устанавливаем направление для орбиты
-            ShootAtTarget(); // Стрельба по цели
+            Direction = smoothedOrbitDirection;
+            ShootAtTarget();
         }
     }
 
     protected override void OnDeath()
     {
-        base.OnDeath();
-        EnemyPoolManager.Instance.ReturnEnemy(this); // Возвращаем в пул вместо Destroy
+        var explosion = ExplosionFXPoolManager.Instance.Get();
+        explosion.transform.position = transform.position;
+        explosion.gameObject.SetActive(true);
+        EnemyPoolManager.Instance.Return(this);
     }
 
     // Метод для поиска ближайшего Carrier как цели
     private Ship FindClosestShip()
     {
-        Ship[] ships = FindObjectsOfType<Carrier>();
+        Ship[] ships = FindObjectsByType<Carrier>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         Ship closest = null;
         float closestDistance = Mathf.Infinity;
         foreach (var ship in ships)
@@ -84,7 +85,7 @@ public class Enemy : Ship
         return closest;
     }
 
-    protected override Entity SelectTarget()
+    protected override SpaceObject SelectTarget()
     {
         return target; // Возвращаем текущую цель
     }
@@ -95,10 +96,10 @@ public class Enemy : Ship
         // Дополнительная логика для Enemy
     }
 
-    public void SpawnAtEdge()
+    public void SpawnAtEdge(int edge = -1  )
     {
         Vector2 screenBounds = Camera.main.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));
-        int edge = Random.Range(0, 4);
+        if (edge == -1) edge = Random.Range(0, 4);
         Vector2 spawnPos = Vector2.zero;
         switch (edge)
         {

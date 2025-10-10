@@ -4,24 +4,34 @@ using UnityEngine;
 public class CameraSettings : MonoBehaviour
 {
     private Camera cam;
+    private CameraFollow cameraFollow;
     private float lastHeight = 0f;
-    private const float PPI_ADJUSTMENT = 100f; // Константа для PPI (пример для 1080p)
+    private float referenceHeight = 1080f; // Reference resolution height (e.g., 1080p)
+    private const float PPI_ADJUSTMENT = 100f; // Keep for compatibility, but adjust logic
 
     private void Awake()
     {
         cam = GetComponent<Camera>();
+        cameraFollow = GetComponent<CameraFollow>();
         if (cam == null)
         {
             Debug.LogError("CameraSettings: No Camera component found! Disabling script.");
             enabled = false;
             return;
         }
-        UpdateOrthographicSize(); // Инициализация размера
+        if (cameraFollow == null)
+        {
+            Debug.LogError("CameraSettings: No CameraFollow component found! Disabling script.");
+            enabled = false;
+            return;
+        }
+        lastHeight = Screen.height;
+        // Initial size is handled by CameraFollow, so no need to set orthographicSize here
     }
 
     private void Update()
     {
-        if (Mathf.Abs(Screen.height - lastHeight) > 10f) // Минимальный порог 10 пикселей
+        if (Mathf.Abs(Screen.height - lastHeight) > 10f) // Check for significant resolution change
         {
             UpdateOrthographicSize();
         }
@@ -30,22 +40,16 @@ public class CameraSettings : MonoBehaviour
     private void UpdateOrthographicSize()
     {
         lastHeight = Screen.height;
-        cam.orthographicSize = lastHeight / (2f * PPI_ADJUSTMENT); // Половина высоты в мировых единицах
-        Debug.Log($"Camera orthographicSize updated to: {cam.orthographicSize} for height: {lastHeight}");
-    }
 
-    private void OnEnable()
-    {
-        //ScreenResolutionChanged += OnResolutionChanged; // Исправлено на ScreenResolutionChanged
-    }
+        // Only adjust orthographicSize if CameraFollow is not zooming
+        if (cameraFollow != null && !cameraFollow.IsZooming) // Assumes IsZooming getter in CameraFollow
+        {
+            // Scale targetOrthographicSize based on resolution relative to reference height
+            float scaleFactor = Screen.height / referenceHeight;
+            float baseOrthographicSize = cameraFollow.TargetOrthographicSize; // Assumes getter in CameraFollow
+            cam.orthographicSize = baseOrthographicSize * scaleFactor;
 
-    private void OnDisable()
-    {
-       // ScreenResolutionChanged -= OnResolutionChanged; // Убедись, что отписываемся
-    }
-
-    private void OnResolutionChanged(Resolution resolution)
-    {
-        UpdateOrthographicSize();
+            Debug.Log($"Camera orthographicSize updated to: {cam.orthographicSize} for height: {lastHeight}");
+        }
     }
 }

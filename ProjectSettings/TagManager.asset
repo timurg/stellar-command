@@ -3,7 +3,10 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - command01
+  - command02
+  - FxTemporaire
   layers:
   - Default
   - TransparentFX
@@ -17,7 +20,7 @@ TagManager:
   - NearStars
   - GameObjects
   - HUD
-  - 
+  - FX
   - 
   - 
   - 
@@ -55,6 +58,9 @@ TagManager:
     locked: 0
   - name: GameObjects
     uniqueID: 47965155
+    locked: 0
+  - name: FX
+    uniqueID: 557629271
     locked: 0
   - name: HUD
     uniqueID: 3072817803

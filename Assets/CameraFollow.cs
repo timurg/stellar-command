@@ -13,6 +13,10 @@ public class CameraFollow : MonoBehaviour
     private Camera cam;
     private bool isZooming = true; // Флаг для анимации
 
+    // Public getters for CameraSettings
+    public bool IsZooming => isZooming;
+    public float TargetOrthographicSize => targetOrthographicSize;
+
     private void Awake()
     {
         cam = GetComponent<Camera>();
