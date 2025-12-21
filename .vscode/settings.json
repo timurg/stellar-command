@@ -66,5 +66,5 @@
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj"
     },
-    "dotnet.defaultSolution": "Stellar Command.slnx"
+    "dotnet.defaultSolution": "stellar-command.slnx"
 }
