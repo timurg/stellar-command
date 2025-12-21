@@ -5,15 +5,17 @@ public abstract class SpaceObject : Entity
 {
     [SerializeField] protected float mass = 1f; // Масса (для Rigidbody2D)
     [SerializeField] protected float maxHealth = 1000f; // Максимальное здоровье
-    [SerializeField] protected float maxSpeed = 100f; // Максимальная скорость
-    [SerializeField] protected float acceleration = 200f; // Ускорение
+    [SerializeField] protected float maxSpeed = 10f; // Максимальная скорость
+    [SerializeField] protected float acceleration = 10f; // Ускорение
 
     [SerializeField] protected bool rotateToDirection = true; // Флаг для ротации (доступен в наследниках)
     [SerializeField] protected bool alive = false; // Объект жив
-    protected float Health { get; set; }
+    public float Health { get; set; }
     public Vector2 Direction { get; set; } // Направление движения (нормализованный вектор)
     protected Rigidbody2D Rigidbody { get; private set; }
-    
+
+    public float Shields { get; protected set; } = 0f; // Щиты объекта
+    public float DPS { get; protected set; } = 0f; // Урон в секунду
 
     protected override void Awake()
     {
@@ -43,22 +45,22 @@ public abstract class SpaceObject : Entity
             {
                 Vector2 force = Direction.normalized * acceleration;
                 Rigidbody.AddForce(force * Time.fixedDeltaTime, ForceMode2D.Impulse);
-                if (Rigidbody.linearVelocity.magnitude > maxSpeed)
+                if (Rigidbody.linearVelocity.magnitude > GetMaxSpeed())
                 {
-                    Rigidbody.linearVelocity = Rigidbody.linearVelocity.normalized * maxSpeed;
+                    Rigidbody.linearVelocity = Rigidbody.linearVelocity.normalized * GetMaxSpeed();
                 }
             }
             else if (Rigidbody.bodyType == RigidbodyType2D.Kinematic)
             {
                 // Для Kinematic — прямое задание позиции
-                Vector2 move = Direction.normalized * maxSpeed * Time.fixedDeltaTime;
+                Vector2 move = Direction.normalized * GetMaxSpeed() * Time.fixedDeltaTime;
                 Rigidbody.MovePosition(Rigidbody.position + move);
             }
             UpdateRotation();
         }
-        
+
     }
-    protected void Move(Vector2 direction)
+    public void Move(Vector2 direction)
     {
         // Управление движением только через Direction
         Direction = direction;
@@ -103,5 +105,5 @@ public abstract class SpaceObject : Entity
 
     public bool IsAlive() => alive; // Публичный метод для проверки
 
-    public float GetMaxSpeed() => maxSpeed; // Публичный метод для получения максимальной скорости
+    public virtual float GetMaxSpeed() => maxSpeed; // Публичный метод для получения максимальной скорости
 }

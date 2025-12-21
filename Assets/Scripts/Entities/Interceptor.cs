@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 [RequireComponent(typeof(SpriteRenderer))]
 public class Interceptor : Ship
 {
-    [SerializeField] private float patrolRadius = 150f; // Радиус патруля
+    [SerializeField] private float patrolRadius = 15f; // Радиус патруля
     [SerializeField] private float fuelConsumptionRate = 10f; // Расход топлива в секунду вне ангара
     [SerializeField] private float lowFuelThreshold = 20f; // Порог топлива для возврата
     [SerializeField] private float lowShieldsThreshold = 20f; // Порог щитов для возврата
@@ -16,6 +16,31 @@ public class Interceptor : Ship
     [SerializeField] private float maxFuel = 100f; // Максимальное топливо
     [SerializeField] private float patrolAngle = 0f; // Угол патруля
     [SerializeField] private float orbitAngle = 0f; // Угол орбиты для атаки
+
+    private AdmiralProtection myAdmiralProtection; // Ссылка на AdmiralProtection (если нужна)
+
+    public float Fuel
+    {
+        get { return fuel; }
+        set
+        {
+            fuel = Mathf.Clamp(value, 0, maxFuel);
+           // Debug.Log($"Interceptor {Id} fuel set to {fuel}/{maxFuel}.");
+        }
+    }
+
+    public Carrier Carrier
+    {
+        get { return carrier; }
+        set { carrier = value; }
+    }
+
+    public float MaxFuel
+    {
+        get { return maxFuel; }
+    }   
+
+    private float savedMaxSpeed;
 
     protected override void Awake()
     {
@@ -27,8 +52,15 @@ public class Interceptor : Ship
             Debug.LogError("Interceptor: No Carrier found in scene!");
         }
         */
+
+        myAdmiralProtection = FindFirstObjectByType<AdmiralProtection>();
+        if (myAdmiralProtection == null)    
+        {
+            Debug.LogWarning("Interceptor: No AdmiralProtection component found, proceeding without it.");
+        }
+        savedMaxSpeed = maxSpeed;
         SetState(ShipState.HANGAR); // Начальное состояние
-        fuel = maxFuel; // Полное топливо
+        Fuel = maxFuel; // Полное топливо
         orbitAngle = Random.Range(0f, 2f * Mathf.PI); // Случайный стартовый угол
     }
 
@@ -69,14 +101,26 @@ public class Interceptor : Ship
         }
     }
 
+    public override float GetMaxSpeed()
+    {
+        switch (GetState())
+        {
+            case ShipState.HANGAR: return 0f;
+            case ShipState.RETURN: return base.GetMaxSpeed() * 0.5f;
+            case ShipState.DAMAGED: return base.GetMaxSpeed() * 0.3f;
+            case ShipState.PATROL: return base.GetMaxSpeed() * 0.5f;
+            default: return base.GetMaxSpeed();
+        }
+    }
+
     private void Patrol(float deltaTime)
     {
         patrolAngle += Mathf.PI / 10f * deltaTime; // Угловая скорость патруля
         Vector2 patrolPos = (Vector2)carrier.transform.position + new Vector2(Mathf.Cos(patrolAngle), Mathf.Sin(patrolAngle)) * patrolRadius;
         Vector2 direction = (patrolPos - (Vector2)transform.position).normalized;
         Move(direction); // Движение по патрулю
-        fuel -= fuelConsumptionRate * deltaTime; // Расход топлива
-        if (fuel <= lowFuelThreshold || shields <= lowShieldsThreshold)
+        Fuel -= fuelConsumptionRate * deltaTime; // Расход топлива
+        if (Fuel <= lowFuelThreshold || Shields <= lowShieldsThreshold)
         {
             SetState(ShipState.RETURN); // Возврат при низком топливе/щитах
         }
@@ -110,8 +154,8 @@ public class Interceptor : Ship
             Move(orbitDirection); // Движение по орбите
             ShootAtTarget(); // Стрельба
         }
-        fuel -= fuelConsumptionRate * deltaTime; // Расход топлива
-        if (fuel <= lowFuelThreshold || shields <= lowShieldsThreshold)
+        Fuel -= fuelConsumptionRate * deltaTime; // Расход топлива
+        if (Fuel <= lowFuelThreshold || Shields <= lowShieldsThreshold)
         {
             SetState(ShipState.RETURN); // Возврат при низком топливе/щитах
         }
@@ -130,23 +174,12 @@ public class Interceptor : Ship
     protected override SpaceObject SelectTarget()
     {
         if (target != null && target.IsAlive()) return target;
-        // Выбираем ближайшего врага
-        Enemy[] enemies = FindObjectsByType<Enemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        SpaceObject closestTarget = null;
-        float closestDistance = Mathf.Infinity;
-        foreach (var enemy in enemies)
+        if (myAdmiralProtection != null)
         {
-            if (enemy.IsAlive())
-            {
-                float distance = Vector2.Distance(transform.position, enemy.transform.position);
-                if (distance < closestDistance)
-                {
-                    closestDistance = distance;
-                    closestTarget = enemy;
-                }
-            }
+            var admiralTarget = myAdmiralProtection.getTargetForProtector(this);
+            if (admiralTarget != null) return admiralTarget;
         }
-        return closestTarget;
+        return null;
     }
 
     public void Deploy(Vector2 startPos, Carrier parentCarrier)
@@ -154,31 +187,21 @@ public class Interceptor : Ship
         transform.position = startPos;
         SetState(ShipState.PATROL); // Вылет
         carrier = parentCarrier; // Установка Carrier
-        fuel = maxFuel; // Полное топливо
+        Fuel = maxFuel; // Полное топливо
         shields = maxShields; // Полные щиты
         gameObject.SetActive(true);
+        SetAlive(true);
     }
 
     public override void SetState(ShipState newState)
     {
         base.SetState(newState);
-        // Дополнительная логика для Interceptor
+        if (newState == ShipState.HANGAR)
+        {
+            Debug.Log($"Interceptor {Id} returning to hangar. Fuel: {Fuel}/{maxFuel}, Shields: {Shields}/{maxShields}");
+            target = null; // Сброс цели
+        }
     }
 
-    public float Fuel
-    {
-        get { return fuel; }
-        set { fuel = Mathf.Clamp(value, 0, maxFuel); }
-    }
-
-    public Carrier Carrier
-    {
-        get { return carrier; }
-        set { carrier = value; }
-    }
-
-    public float MaxFuel
-    {
-        get { return maxFuel; }
-    }   
+    
 }

@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 using System;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(BoxCollider2D))]
@@ -89,8 +91,20 @@ public abstract class Ship : SpaceObject
          // Настройка игнорирования коллизий между кораблями
     }
 
-    protected void OnEnable(){
+    protected void OnEnable()
+    {
         IgnoreShipCollisions();
+        LoadWeapons();
+    }
+    
+    void LoadWeapons()
+    {
+        foreach (var weapon in GetComponentsInChildren<WeaponGun>())
+        {
+            if (weapons.Contains(weapon)) continue;
+            weapons.Add(weapon);
+            weapon.tag = this.tag; // Наследуем тег корабля
+        }
     }
 
     protected override void Update()
@@ -105,6 +119,25 @@ public abstract class Ship : SpaceObject
     {
         target = newTarget;
     }
+
+    public float GetDamagePerSecond()
+    {
+        float dps = 0f;
+        foreach (var weapon in weapons)
+        {
+            if (weapon != null)
+            {
+                dps += weapon.GetDamagePerSecond();
+            }
+        }
+        return dps;
+    }
+
+    public SpaceObject GetTarget()
+    {
+        return target;
+    }
+
     // Общий метод стрельбы
     protected virtual void ShootAtTarget()
     {
@@ -176,7 +209,7 @@ public abstract class Ship : SpaceObject
         }
     }
 
-    public float Shields
+    public new float Shields
     {
         get => shields;
         set => shields = Mathf.Clamp(value, 0, maxShields);
@@ -186,6 +219,11 @@ public abstract class Ship : SpaceObject
     {
         get => maxShields;
         set => maxShields = value;
+    }
+
+    public bool CanShoot()
+    {
+        return weapons.Any(w => w != null && w.CanFire()); // Проверяем, есть ли оружие, готовое к стрельбе
     }
 
 }

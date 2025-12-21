@@ -9,7 +9,8 @@ public abstract class WeaponGun : Entity
     [SerializeField] protected float effectiveRange = 3f;
     [SerializeField] protected bool isProjectileWeapon = true;
     [SerializeField] protected Transform muzzle;
-    
+    [SerializeField] protected float turnSpeed = 900f; // Degrees per second, enough to turn 180 degrees in 0.2 seconds
+    [SerializeField] protected float lockAngleTolerance = 5f; // Degrees tolerance for lock-on
 
 
     protected float shootTimer = 0f;
@@ -17,14 +18,23 @@ public abstract class WeaponGun : Entity
 
     public float EffectiveRange => effectiveRange;
 
-    protected virtual void Update()
+    public float GetDamagePerSecond()
     {
-        if (shootTimer > 0) shootTimer -= Time.deltaTime;
+        return damage / shootCooldown;
     }
 
-    protected void FixedUpdate()
+     protected void FixedUpdate()
     {
         if (shootTimer > 0) shootTimer -= Time.fixedDeltaTime;
+        if (target != null)
+        {
+            Vector2 origin = muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
+            Vector2 targetPos = (Vector2)target.transform.position;
+            Vector2 dir = (targetPos - origin).normalized;
+            float angle = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
+            Quaternion targetRot = Quaternion.Euler(0f, 0f, angle);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, turnSpeed * Time.fixedDeltaTime);
+        }
     }
 
     public virtual void SetTarget(SpaceObject target)
@@ -50,18 +60,22 @@ public abstract class WeaponGun : Entity
 
     public virtual void ShootIfReady()
     {
+        if (target == null) return;
         if (shootTimer > 0) return;
-        Vector2 targetPos = target != null ? (Vector2)target.transform.position : (Vector2)transform.position;
-        float distanceToTarget = Vector2.Distance(muzzle.position, targetPos);
+
+        Vector2 targetPos = (Vector2)target.transform.position;
+        Vector2 origin = muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
+        float distanceToTarget = Vector2.Distance(origin, targetPos);
         if (distanceToTarget > effectiveRange) return;
 
-        Vector2 origin = muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
         Vector2 dir = (targetPos - origin).normalized;
-        
-        
+        Vector2 currentDir = (Vector2)transform.up;
 
-        
-        //var projectileBase = projectile.GetComponent<ProjectileBase>();
+        float cosTolerance = Mathf.Cos(lockAngleTolerance * Mathf.Deg2Rad);
+        if (Vector2.Dot(currentDir, dir) < cosTolerance) return; // Not locked on yet
+
+        shootTimer = shootCooldown;
+
         var owner = GetComponentInParent<SpaceObject>();
         if (owner == null)
         {
@@ -76,8 +90,11 @@ public abstract class WeaponGun : Entity
         else
         {
             OnShootNonProjectile(owner, origin, dir, target);
-        }
+        }        
+    }
 
-        shootTimer = shootCooldown;
+    public bool CanFire()
+    {
+        return shootTimer <= 0 && target != null && Vector2.Distance((Vector2)(muzzle != null ? muzzle.position : transform.position), (Vector2)target.transform.position) <= effectiveRange;
     }
 }

@@ -1,38 +1,78 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
+
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.UI;
 
+
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(BoxCollider2D))]
-[RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class Carrier : Ship
 {
-    
-
     [SerializeField] private int maxInterceptors = 5; // Максимум истребителей
-    [SerializeField] private float fuelRegenRate = 20f; // Реген топлива/щитов в ангаре
+    [SerializeField] private float fuelRegenRate = 2f; // Реген топлива/щитов в ангаре
     [SerializeField] private float deployCooldown = 1f; // Кулдаун деплой
     [SerializeField] public GameObject hangarObject; // Объект ангарной точки
     [SerializeField] private Slider HpBar; // Полоса здоровья
     [SerializeField] private Slider ShieldsBar; // Полоса щитов
     [SerializeField] private Text InterceptorCountText; // Текстовое поле для отображения количества истребителей
 
+
+    private UpgradeTreeModel UpgradeTreeModel;
+
+    public UpgradeTreeModel CreateUpgradeTreeModel(){
+        var model = new UpgradeTreeModel { treeName = "Carrier" };
+
+        // === Все узлы ===
+        var hp = new UpgradeNodeModel { id = "hp", title = "ХП", maxLevel = 5, isUnlocked = true, description = "+100 HP за уровень" };
+        var shields = new UpgradeNodeModel { id = "shields", title = "Щиты", maxLevel = 3, requiredNodeIds = { "hp" } };
+        var guns = new UpgradeNodeModel { id = "guns", title = "Турели", maxLevel = 1 };
+        var intGun = new UpgradeNodeModel { id = "int_gun", title = "Interceptor Gun", maxLevel = 4, requiredNodeIds = { "guns" } };
+        var fleet = new UpgradeNodeModel { id = "fleet", title = "Флот", maxLevel = 3 };
+        var speed = new UpgradeNodeModel { id = "speed", title = "Скорость", maxLevel = 5, requiredNodeIds = { "fleet" } };
+
+        model.allNodes.AddRange(new[] { hp, shields, guns, intGun, fleet, speed });
+
+        // === Пути ===
+        model.rootPaths.Add(new UpgradePath
+        {
+            pathName = "Прочность",
+            nodeIds = new List<string> { "hp", "shields" }
+        });
+
+        model.rootPaths.Add(new UpgradePath
+        {
+            pathName = "Бой",
+            nodeIds = new List<string> { "guns", "int_gun" }
+        });
+
+        model.rootPaths.Add(new UpgradePath
+        {
+            pathName = "Флот",
+            nodeIds = new List<string> { "fleet", "speed" }
+        });
+        return model;
+    }
+
     private readonly List<Interceptor> hangar = new(); // Список для логики ангара (не для Instantiate)
     private float deployTimer = 0f;
 
-    private InputAction moveHorizontal;
-    private InputAction moveVertical;
-    private InputAction clickAction;
-    private InputAction clickPosition;
-    private Vector2 smoothInput;
+    private AdmiralProtection admiralProtection;
+    
 
     new protected void Start()
     {
         base.Start();
         // Пуллинг: заполняем ангар из пула
+        InitxInterceptors();
+        
+        //ShieldsBar.maxValue = maxShields;
+        //HpBar.maxValue = maxHealth;
+    }
+
+    protected void InitxInterceptors()
+    {
         hangar.Clear();
         for (int i = 0; i < maxInterceptors; i++)
         {
@@ -43,8 +83,6 @@ public class Carrier : Ship
             interceptor.gameObject.SetActive(false);
             hangar.Add(interceptor);
         }
-        ShieldsBar.maxValue = maxShields;
-        HpBar.maxValue = maxHealth;
     }
     /*
     protected override void UpdateRotation()
@@ -67,37 +105,24 @@ public class Carrier : Ship
     protected override void Awake()
     {
         base.Awake();
-        var playerInput = GetComponent<PlayerInput>();
-        if (playerInput == null)
+        admiralProtection = FindFirstObjectByType<AdmiralProtection>();
+        if (admiralProtection == null)
         {
-            Debug.LogError("PlayerInput component not found on Carrier! Please add it.");
+            Debug.LogError("Carrier: No AdmiralProtection found in scene!");
+            enabled = false;
             return;
         }
-        moveHorizontal = playerInput.actions["MoveHorizontal"];
-        moveVertical = playerInput.actions["MoveVertical"];
-        clickAction = playerInput.actions["Click"];
-        clickPosition = playerInput.actions["ClickPosition"];
-
-        
+        admiralProtection.Protect(this);
     }
 
     new private void FixedUpdate()
     {
         base.FixedUpdate();
-        HandleMovement(Time.fixedDeltaTime);
+        //HandleMovement(Time.fixedDeltaTime);
         HandleHangar(Time.fixedDeltaTime);
         HandleDeploy(Time.fixedDeltaTime);
         UpdateHud();
         ShootAtTarget();
-    }
-
-    private void HandleMovement(float deltaTime)
-    {
-        float rawX = moveHorizontal.ReadValue<float>();
-        float rawY = moveVertical.ReadValue<float>();
-        smoothInput = Vector2.Lerp(smoothInput, new Vector2(rawX, rawY), 0.1f);
-        Vector2 direction = smoothInput.normalized; // Преобразуем в направление
-        Move(direction); // Вызываем Move с направлением
     }
 
     private void HandleHangar(float deltaTime)
@@ -106,10 +131,20 @@ public class Carrier : Ship
         {
             if (interceptor.GetState() == ShipState.HANGAR || interceptor.GetState() == ShipState.DAMAGED)
             {
-                interceptor.Fuel = Mathf.Min(interceptor.MaxFuel, interceptor.Fuel + fuelRegenRate * deltaTime);
-                //Debug.Log($"Regenerating interceptor fuel. Current fuel: {interceptor.Fuel}/{interceptor.MaxFuel}");
-                interceptor.Shields = Mathf.Min(interceptor.MaxShields, interceptor.Shields + fuelRegenRate * deltaTime / 2);
-                if (interceptor.GetState() == ShipState.DAMAGED && interceptor.Shields >= 100) interceptor.SetState(ShipState.HANGAR);
+                // Ограничиваем регенерацию топлива и щитов
+                float fuelRegen = Mathf.Min(fuelRegenRate * deltaTime / 2, interceptor.MaxFuel - interceptor.Fuel);
+                float shieldRegen = Mathf.Min(fuelRegenRate * deltaTime / 2, interceptor.MaxShields - interceptor.Shields);
+
+                interceptor.Fuel += fuelRegen;
+                interceptor.Shields += shieldRegen;
+
+                // Логируем для отладки
+                //Debug.Log($"Interceptor {interceptor.name}: Fuel {interceptor.Fuel}/{interceptor.MaxFuel}, Shields {interceptor.Shields}/{interceptor.MaxShields}");
+
+                if (interceptor.GetState() == ShipState.DAMAGED && interceptor.Shields >= 100)
+                {
+                    interceptor.SetState(ShipState.HANGAR);
+                }
             }
         }
     }
@@ -124,7 +159,7 @@ public class Carrier : Ship
             {
                 idleInterceptor.Deploy(hangarObject.transform.position, this);
                 deployTimer = deployCooldown;
-                //Debug.Log("Deployed an interceptor. Remaining in hangar: " + hangar.Count(s => s.GetState() == ShipState.HANGAR) + "/" + maxInterceptors);
+                Debug.Log("Deployed an interceptor. Remaining in hangar: " + hangar.Count(s => s.GetState() == ShipState.HANGAR) + "/" + maxInterceptors);
             }
         }
     }
@@ -135,27 +170,14 @@ public class Carrier : Ship
         {
             if (target != null && target.IsAlive()) return target;
             // Выбираем ближайшего врага
-            Enemy[] enemies = FindObjectsByType<Enemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-            SpaceObject closestTarget = null;
-            float closestDistance = Mathf.Infinity;
-            foreach (var enemy in enemies)
+            var enemy = admiralProtection.getTargetForProtectable(this);
+            if (enemy != null)
             {
-                if (enemy.IsAlive())
-                {
-                    float distance = Vector2.Distance(transform.position, enemy.transform.position);
-                    if (distance < closestDistance)
-                    {
-                        closestDistance = distance;
-                        closestTarget = enemy;
-                    }
-                }
+                return enemy;
             }
-            return closestTarget;
+
         }
-        else
-        {
-            return null; // Carrier не выбирает цель
-        }
+        return null;
     }
 
 
@@ -171,8 +193,8 @@ public class Carrier : Ship
 
     public void UpdateHud()
     {
-        HpBar.value = Health;
-        ShieldsBar.value = Shields;
-        InterceptorCountText.text = $"Interceptors: {hangar.Count(s => s.GetState() != ShipState.HANGAR && s.GetState() != ShipState.DAMAGED)}/{maxInterceptors}";
+        //HpBar.value = Health;
+        //ShieldsBar.value = Shields;
+        //InterceptorCountText.text = $"Interceptors: {hangar.Count(s => s.GetState() != ShipState.HANGAR && s.GetState() != ShipState.DAMAGED)}/{maxInterceptors}";
     }
 }
