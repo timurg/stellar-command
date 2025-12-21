@@ -22,7 +22,10 @@ public class ProtonProjectile: ProjectileBase
     }
     protected override void OnDeath()
     {
-        if (trail != null) trail.enabled = false;
+        if (trail != null) {
+            trail.Clear();
+            trail.enabled = false;
+        }
         ProtonProjectilePoolManager.Instance.Return(this);
     }
 }

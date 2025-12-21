@@ -29,7 +29,8 @@ public abstract class WeaponGun : Entity
         if (target != null)
         {
             Vector2 origin = muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
-            Vector2 targetPos = (Vector2)target.transform.position;
+            Collider2D targetCollider = target.GetComponent<Collider2D>();
+            Vector2 targetPos = targetCollider != null ? targetCollider.ClosestPoint(origin) : (Vector2)target.transform.position;
             Vector2 dir = (targetPos - origin).normalized;
             float angle = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
             Quaternion targetRot = Quaternion.Euler(0f, 0f, angle);
@@ -63,8 +64,9 @@ public abstract class WeaponGun : Entity
         if (target == null) return;
         if (shootTimer > 0) return;
 
-        Vector2 targetPos = (Vector2)target.transform.position;
         Vector2 origin = muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
+        Collider2D targetCollider = target.GetComponent<Collider2D>();
+        Vector2 targetPos = targetCollider != null ? targetCollider.ClosestPoint(origin) : (Vector2)target.transform.position;
         float distanceToTarget = Vector2.Distance(origin, targetPos);
         if (distanceToTarget > effectiveRange) return;
 
@@ -95,6 +97,10 @@ public abstract class WeaponGun : Entity
 
     public bool CanFire()
     {
-        return shootTimer <= 0 && target != null && Vector2.Distance((Vector2)(muzzle != null ? muzzle.position : transform.position), (Vector2)target.transform.position) <= effectiveRange;
+        if (shootTimer > 0 || target == null) return false;
+        Vector2 origin = muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
+        Collider2D targetCollider = target.GetComponent<Collider2D>();
+        Vector2 closest = targetCollider != null ? targetCollider.ClosestPoint(origin) : (Vector2)target.transform.position;
+        return Vector2.Distance(origin, closest) <= effectiveRange;
     }
 }
