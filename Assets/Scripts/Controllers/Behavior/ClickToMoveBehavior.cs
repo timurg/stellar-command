@@ -2,6 +2,23 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 
+/// <summary>
+/// Mouse/touch click-to-move controller for SpaceObject movement.
+/// Moves ship toward clicked position until reaching stopping distance.
+/// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>ClickToMoveBehavior provides point-and-click movement.</para>
+/// <para>Key features:</para>
+/// <list type="bullet">
+///   <item>INPUT SYSTEM: Uses Unity's new Input System with touch support.</item>
+///   <item>TARGET BASED: Stores target position, moves toward it.</item>
+///   <item>STOPPING: Stops when within stoppingDistance of target.</item>
+///   <item>DIRECTION BASED: Calls spaceObject.Move(direction).</item>
+///   <item>GIZMOS: Visualizes target in editor.</item>
+/// </list>
+/// <para>Alternative: UserInputBehavior for keyboard/gamepad control.</para>
+/// </remarks>
 [RequireComponent(typeof(SpaceObject))]
 public class ClickToMoveBehavior : MonoBehaviour
 {
@@ -14,9 +31,13 @@ public class ClickToMoveBehavior : MonoBehaviour
     private Camera mainCamera;
 
     [Header("Click Settings")]
-    [Tooltip("Минимальное расстояние до цели, чтобы остановиться")]
+    /// <summary>Distance at which ship stops moving toward target.</summary>
+    [Tooltip("Minimum distance to target to stop")]
     public float stoppingDistance = 0.5f;
 
+    /// <summary>
+    /// Initializes camera and component references.
+    /// </summary>
     private void Awake()
     {
         mainCamera = Camera.main;
@@ -32,9 +53,12 @@ public class ClickToMoveBehavior : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Enables touch support and subscribes to click events.
+    /// </summary>
     private void OnEnable()
     {
-        EnhancedTouchSupport.Enable(); // Для тача
+        EnhancedTouchSupport.Enable();
 
         var playerInput = GetComponent<PlayerInput>();
         if (playerInput == null)
@@ -49,28 +73,36 @@ public class ClickToMoveBehavior : MonoBehaviour
         clickAction.performed += OnClickPerformed;
     }
 
+    /// <summary>
+    /// Unsubscribes from click events and disables touch support.
+    /// </summary>
     private void OnDisable()
     {
         clickAction.performed -= OnClickPerformed;
         EnhancedTouchSupport.Disable();
     }
 
-private void OnClickPerformed(InputAction.CallbackContext context)
-{
-    if (mainCamera == null) return;
+    /// <summary>
+    /// Handles click input - converts screen position to world target.
+    /// </summary>
+    /// <param name="context">Input callback context.</param>
+    private void OnClickPerformed(InputAction.CallbackContext context)
+    {
+        if (mainCamera == null) return;
 
-    Vector2 screenPos = clickPositionAction.ReadValue<Vector2>();
-    
-    // 2D Orthographic — самый надёжный способ
-    Vector3 worldPos = mainCamera.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, mainCamera.nearClipPlane - mainCamera.transform.position.z));
-    targetPosition = new Vector3(worldPos.x, worldPos.y, 0);
+        Vector2 screenPos = clickPositionAction.ReadValue<Vector2>();
+        
+        Vector3 worldPos = mainCamera.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, mainCamera.nearClipPlane - mainCamera.transform.position.z));
+        targetPosition = new Vector3(worldPos.x, worldPos.y, 0);
 
-    // ДЕБАГ: выведем координаты
-    Debug.Log($"[CLICK] Screen: {screenPos} → World: {targetPosition} | Ship: {transform.position}");
+        Debug.Log($"[CLICK] Screen: {screenPos} → World: {targetPosition} | Ship: {transform.position}");
 
-    hasTarget = true;
-}
+        hasTarget = true;
+    }
 
+    /// <summary>
+    /// Moves toward target in physics update.
+    /// </summary>
     private void FixedUpdate()
     {
         if (!hasTarget || spaceObject == null || !spaceObject.IsAlive()) return;
@@ -82,16 +114,17 @@ private void OnClickPerformed(InputAction.CallbackContext context)
         if (distance <= stoppingDistance)
         {
             hasTarget = false;
-            spaceObject.Move(Vector2.zero); // Остановка
+            spaceObject.Move(Vector2.zero);
             return;
         }
 
-        // Только направление — нормализованное
         Vector2 direction = toTarget.normalized;
         spaceObject.Move(direction);
     }
 
-    // Визуализация в редакторе
+    /// <summary>
+    /// Draws target visualization in editor.
+    /// </summary>
     private void OnDrawGizmosSelected()
     {
         if (hasTarget)

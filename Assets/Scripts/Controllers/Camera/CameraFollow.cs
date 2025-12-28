@@ -1,23 +1,55 @@
 using UnityEngine;
 using System.Collections;
 
+/// <summary>
+/// Camera controller that follows a target with smooth movement and zoom animation.
+/// Typically follows the Carrier (player's main ship).
+/// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>CameraFollow handles camera tracking and initial zoom animation.</para>
+/// <para>Key features:</para>
+/// <list type="bullet">
+///   <item>FOLLOW: Smoothly follows target transform in LateUpdate.</item>
+///   <item>ZOOM: Animates from startOrthographicSize to targetOrthographicSize on start.</item>
+///   <item>OFFSET: Maintains Z offset for 2D camera positioning.</item>
+///   <item>INTEGRATION: Exposes IsZooming/TargetOrthographicSize for CameraSettings.</item>
+/// </list>
+/// <para>Assign Carrier transform as target in Inspector.</para>
+/// </remarks>
 [RequireComponent(typeof(Camera))]
 public class CameraFollow : MonoBehaviour
 {
-    [SerializeField] private Transform target; // Назначь Carrier
-    [SerializeField] private float smoothSpeed = 0.125f; // Плавность следования
-    [SerializeField] private Vector3 offset = new Vector3(0f, 0f, -10f); // Базовое смещение
-    [SerializeField] private float startOrthographicSize = 5f; // Начальный зум (близко)
-    [SerializeField] private float targetOrthographicSize = 10f; // Конечный зум (отдаление)
-    [SerializeField] private float zoomDuration = 2f; // Длительность анимации (секунд)
+    /// <summary>Target to follow (assign Carrier).</summary>
+    [SerializeField] private Transform target;
+    
+    /// <summary>Smoothness of camera following.</summary>
+    [SerializeField] private float smoothSpeed = 0.125f;
+    
+    /// <summary>Offset from target (Z should be negative for 2D).</summary>
+    [SerializeField] private Vector3 offset = new Vector3(0f, 0f, -10f);
+    
+    /// <summary>Initial zoom level (close).</summary>
+    [SerializeField] private float startOrthographicSize = 5f;
+    
+    /// <summary>Final zoom level (far).</summary>
+    [SerializeField] private float targetOrthographicSize = 10f;
+    
+    /// <summary>Duration of zoom animation in seconds.</summary>
+    [SerializeField] private float zoomDuration = 2f;
 
     private Camera cam;
-    private bool isZooming = true; // Флаг для анимации
+    private bool isZooming = true;
 
-    // Public getters for CameraSettings
+    /// <summary>Whether zoom animation is in progress.</summary>
     public bool IsZooming => isZooming;
+    
+    /// <summary>Target orthographic size after zoom.</summary>
     public float TargetOrthographicSize => targetOrthographicSize;
 
+    /// <summary>
+    /// Initializes camera reference and sets initial zoom.
+    /// </summary>
     private void Awake()
     {
         cam = GetComponent<Camera>();
@@ -26,14 +58,20 @@ public class CameraFollow : MonoBehaviour
             Debug.LogError("CameraFollow: No Camera component found!");
             return;
         }
-        cam.orthographicSize = startOrthographicSize; // Устанавливаем начальный зум
+        cam.orthographicSize = startOrthographicSize;
     }
 
+    /// <summary>
+    /// Starts zoom animation coroutine.
+    /// </summary>
     private void Start()
     {
         StartCoroutine(ZoomOutCoroutine());
     }
 
+    /// <summary>
+    /// Follows target after zoom completes.
+    /// </summary>
     private void LateUpdate()
     {
         if (target == null)
@@ -50,6 +88,9 @@ public class CameraFollow : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Coroutine for smooth zoom animation from start to target size.
+    /// </summary>
     private IEnumerator ZoomOutCoroutine()
     {
         float elapsedTime = 0f;
@@ -59,9 +100,9 @@ public class CameraFollow : MonoBehaviour
             elapsedTime += Time.deltaTime;
             float t = elapsedTime / zoomDuration;
             cam.orthographicSize = Mathf.Lerp(initialSize, targetOrthographicSize, t);
-            yield return null; // Ждём следующий кадр
+            yield return null;
         }
-        cam.orthographicSize = targetOrthographicSize; // Устанавливаем финальный зум
-        isZooming = false; // Завершаем анимацию
+        cam.orthographicSize = targetOrthographicSize;
+        isZooming = false;
     }
 }

@@ -5,23 +5,40 @@ using TMPro;
 using System.Collections;
 
 /// <summary>
-/// Singleton-менеджер тултипа для отображения описания узла прокачки.
-/// Sci-Fi стиль: голографическая панель с неоновым текстом и лёгкой анимацией.
+/// Singleton tooltip manager for upgrade node descriptions.
+/// Displays holographic panel with neon text and smooth animations.
 /// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>UpgradeTooltip is a singleton that manages hover tooltips for upgrade nodes.</para>
+/// <para>Key features:</para>
+/// <list type="bullet">
+///   <item>SINGLETON: Instance property, DontDestroyOnLoad</item>
+///   <item>INPUT: Uses PlayerInput "ClickPosition" action for cursor tracking</item>
+///   <item>ANIMATION: Show/Hide coroutines with scale and fade effects</item>
+///   <item>POSITIONING: Follows cursor with offset, stays within canvas</item>
+/// </list>
+/// <para>Called by UpgradeNodeUI.OnPointerEnter/Exit.</para>
+/// </remarks>
 public class UpgradeTooltip : MonoBehaviour
 {
+    /// <summary>Singleton instance.</summary>
     public static UpgradeTooltip Instance { get; private set; }
 
+    /// <summary>Tooltip panel RectTransform.</summary>
     [SerializeField] private RectTransform panel;
+    /// <summary>Description text component.</summary>
     [SerializeField] private TextMeshProUGUI descriptionText;
+    /// <summary>Background image for hologram effect.</summary>
     [SerializeField] private Image backgroundImage;
+    /// <summary>Material for hologram visual effect.</summary>
     [SerializeField] private Material hologramMaterial;
 
     private Coroutine showRoutine;
     private Coroutine hideRoutine;
     private bool isVisible = false;
 
-    // Кэшируем действие из существующего PlayerInput
+    // Cached input action from existing PlayerInput
     private InputAction pointerPositionAction;
     private PlayerInput playerInput;
 
@@ -35,7 +52,7 @@ public class UpgradeTooltip : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Ищем PlayerInput в сцене (один раз)
+        // Find PlayerInput in scene (once)
         playerInput = FindFirstObjectByType<PlayerInput>();
         if (playerInput == null)
         {
@@ -43,7 +60,7 @@ public class UpgradeTooltip : MonoBehaviour
             return;
         }
 
-        // Берём действие "ClickPosition" по имени (как у тебя уже есть)
+        // Get "ClickPosition" action by name
         pointerPositionAction = playerInput.actions["ClickPosition"];
         if (pointerPositionAction == null)
         {
@@ -51,11 +68,11 @@ public class UpgradeTooltip : MonoBehaviour
             return;
         }
 
-        // Включаем действие и подписываемся на изменения
+        // Enable action and subscribe to changes
         pointerPositionAction.Enable();
         pointerPositionAction.performed += _ => UpdatePositionIfVisible();
 
-        // Изначально скрыто
+        // Initially hidden
         if (panel) panel.gameObject.SetActive(false);
         if (backgroundImage && hologramMaterial) backgroundImage.material = hologramMaterial;
     }
@@ -70,8 +87,9 @@ public class UpgradeTooltip : MonoBehaviour
     }
 
     /// <summary>
-    /// Показывает тултип с описанием модели.
+    /// Shows tooltip with model description.
     /// </summary>
+    /// <param name="model">Upgrade node model to display.</param>
     public void Show(UpgradeNodeModel model)
     {
         if (hideRoutine != null) StopCoroutine(hideRoutine);
@@ -88,6 +106,9 @@ public class UpgradeTooltip : MonoBehaviour
         UpdatePositionIfVisible(); // Сразу позиционируем
     }
 
+    /// <summary>
+    /// Coroutine for show animation with fade and scale.
+    /// </summary>
     private IEnumerator ShowAnimation()
     {
         if (backgroundImage) yield return backgroundImage.Fade(0.95f, 0.3f, EaseType.OutCubic);
@@ -96,7 +117,7 @@ public class UpgradeTooltip : MonoBehaviour
     }
 
     /// <summary>
-    /// Скрывает тултип.
+    /// Hides tooltip with animation.
     /// </summary>
     public void Hide()
     {
@@ -106,6 +127,9 @@ public class UpgradeTooltip : MonoBehaviour
         hideRoutine = StartCoroutine(HideAnimation());
     }
 
+    /// <summary>
+    /// Coroutine for hide animation with scale and fade.
+    /// </summary>
     private IEnumerator HideAnimation()
     {
         if (panel) yield return panel.ScaleTo(Vector3.zero, 0.2f, EaseType.InBack);
@@ -115,7 +139,10 @@ public class UpgradeTooltip : MonoBehaviour
         isVisible = false;
     }
 
-    // Вызывается из события Input System и из Show()
+    /// <summary>
+    /// Updates panel position to follow cursor.
+    /// Called from Input System event and Show().
+    /// </summary>
     private void UpdatePositionIfVisible()
     {
         if (!isVisible || panel == null || pointerPositionAction == null) return;
@@ -134,12 +161,14 @@ public class UpgradeTooltip : MonoBehaviour
             out Vector2 localPoint
         );
 
-        // Отступ от курсора + защита от выхода за экран (опционально)
+        // Offset from cursor + screen bounds protection
         Vector2 offset = new Vector2(20f, -20f);
         panel.anchoredPosition = localPoint + offset;
     }
 
-    // Резервный Update на случай, если действие не сработало (редко)
+    /// <summary>
+    /// Backup position update in LateUpdate.
+    /// </summary>
     private void LateUpdate()
     {
         if (isVisible)

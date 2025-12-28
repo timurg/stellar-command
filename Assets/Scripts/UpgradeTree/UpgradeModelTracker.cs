@@ -4,36 +4,55 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// Реактивный трекер для любой модели прокачки.
-/// Отслеживает изменения, генерирует события (old → new) и хранит актуальную копию.
+/// Reactive tracker for upgrade model changes.
+/// Detects changes, fires events (old → new), and stores working copy.
 /// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>UpgradeModelTracker provides reactive change detection for UpgradeTreeModel.</para>
+/// <para>Key features:</para>
+/// <list type="bullet">
+///   <item>OnNodeLevelChanged: Fires when currentLevel changes (id, old, new)</item>
+///   <item>OnNodeUnlockedChanged: Fires when isUnlocked changes</item>
+///   <item>OnAnyNodeChanged: Generic event for any node modification</item>
+///   <item>GetWorkingCopy()/CommitChanges(): Safe mutation pattern</item>
+/// </list>
+/// <para>Uses JSON serialization for deep copy operations.</para>
+/// </remarks>
+/// <typeparam name="T">Model type (typically UpgradeTreeModel).</typeparam>
 public class UpgradeModelTracker<T> where T : class
 {
-    // События: конкретное поле + старое/новое значение
-    public event Action<string, int, int> OnNodeLevelChanged; // id, oldLevel, newLevel
-    public event Action<string, bool, bool> OnNodeUnlockedChanged; // id, old, new
-
-    // Универсальное событие: любой изменившийся узел
+    /// <summary>Fires when node level changes (id, oldLevel, newLevel).</summary>
+    public event Action<string, int, int> OnNodeLevelChanged;
+    /// <summary>Fires when node unlock state changes (id, oldState, newState).</summary>
+    public event Action<string, bool, bool> OnNodeUnlockedChanged;
+    /// <summary>Fires when any node property changes.</summary>
     public event Action<UpgradeNodeModel> OnAnyNodeChanged;
 
     private T currentModel;
     private T workingCopy;
 
+    /// <summary>Current immutable model snapshot.</summary>
     public T Current => currentModel;
 
+    /// <summary>
+    /// Creates tracker with initial model.
+    /// </summary>
+    /// <param name="initialModel">Initial model to track.</param>
     public UpgradeModelTracker(T initialModel)
     {
         SetModel(initialModel);
     }
 
     /// <summary>
-    /// Заменяет модель на новую, сравнивает с предыдущей и генерирует события.
+    /// Replaces model with new version, compares with previous, and fires change events.
     /// </summary>
+    /// <param name="newModel">New model to set.</param>
     public void SetModel(T newModel)
     {
         if (newModel == null) throw new ArgumentNullException(nameof(newModel));
 
-        // Если это первый вызов — просто сохраняем
+        // First call — just save
         if (currentModel == null)
         {
             currentModel = DeepCopy(newModel);
@@ -41,18 +60,19 @@ public class UpgradeModelTracker<T> where T : class
             return;
         }
 
-        // Сравниваем старую и новую версии
+        // Compare old and new versions
         CompareAndRaiseEvents(currentModel, newModel);
 
-        // Заменяем на актуальную
+        // Replace with current
         currentModel = DeepCopy(newModel);
         workingCopy = DeepCopy(newModel);
     }
 
     /// <summary>
-    /// Возвращает рабочую копию для изменения (чтобы не ломать основную модель).
-    /// После изменений — вызови CommitChanges().
+    /// Returns working copy for safe mutations.
+    /// Call CommitChanges() after modifications.
     /// </summary>
+    /// <returns>Mutable copy of current model.</returns>
     public T GetWorkingCopy()
     {
         workingCopy = DeepCopy(currentModel);
@@ -60,7 +80,7 @@ public class UpgradeModelTracker<T> where T : class
     }
 
     /// <summary>
-    /// Применяет изменения из рабочей копии → генерирует события.
+    /// Applies changes from working copy and fires events.
     /// </summary>
     public void CommitChanges()
     {
@@ -71,7 +91,9 @@ public class UpgradeModelTracker<T> where T : class
         currentModel = DeepCopy(workingCopy);
     }
 
-    // Сравнение UpgradeTreeModel
+    /// <summary>
+    /// Compares UpgradeTreeModel instances and raises appropriate events.
+    /// </summary>
     private void CompareAndRaiseEvents(T oldModel, T newModel)
     {
         if (oldModel is not UpgradeTreeModel oldTree || newModel is not UpgradeTreeModel newTree) return;
@@ -89,19 +111,19 @@ public class UpgradeModelTracker<T> where T : class
 
             if (!oldDict.TryGetValue(id, out var oldNode))
             {
-                // Новый узел — редкий кейс, но на всякий
+                // New node — rare case
                 OnAnyNodeChanged?.Invoke(newNode);
                 continue;
             }
 
-            // Сравниваем уровень
+            // Compare level
             if (oldNode.currentLevel != newNode.currentLevel)
             {
                 OnNodeLevelChanged?.Invoke(id, oldNode.currentLevel, newNode.currentLevel);
                 OnAnyNodeChanged?.Invoke(newNode);
             }
 
-            // Сравниваем разблокировку
+            // Compare unlock state
             if (oldNode.isUnlocked != newNode.isUnlocked)
             {
                 OnNodeUnlockedChanged?.Invoke(id, oldNode.isUnlocked, newNode.isUnlocked);
@@ -110,7 +132,9 @@ public class UpgradeModelTracker<T> where T : class
         }
     }
 
-    // Простой Deep Copy через JSON (подходит для твоих моделей — они сериализуемые)
+    /// <summary>
+    /// Creates deep copy using JSON serialization.
+    /// </summary>
     private static TDeep DeepCopy<TDeep>(TDeep obj) where TDeep : class
     {
         if (obj == null) return null;

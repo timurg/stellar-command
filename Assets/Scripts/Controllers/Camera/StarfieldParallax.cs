@@ -1,19 +1,45 @@
 using UnityEngine;
 
+/// <summary>
+/// Procedural starfield background with parallax effect.
+/// Generates multiple star layers that move at different speeds relative to camera.
+/// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>StarfieldParallax creates dynamic space background.</para>
+/// <para>Key features:</para>
+/// <list type="bullet">
+///   <item>LAYERS: Multiple StarLayer configurations with different parallax.</item>
+///   <item>PROCEDURAL: Stars generated randomly, no texture needed.</item>
+///   <item>PARALLAX: Lower parallax = further stars = slower movement.</item>
+///   <item>MESH BASED: Uses dynamic Mesh for GPU-efficient rendering.</item>
+///   <item>TILING: Stars wrap around edges for infinite scrolling.</item>
+/// </list>
+/// <para>Configure layers in Inspector for depth effect.</para>
+/// </remarks>
 [ExecuteAlways]
 public class StarfieldParallax : MonoBehaviour
 {
+    /// <summary>
+    /// Configuration for a single star layer.
+    /// </summary>
     [System.Serializable]
     public class StarLayer
     {
+        /// <summary>Number of stars in this layer.</summary>
         public int starCount = 100;
+        /// <summary>Width of star field.</summary>
         public float width = 50f;
+        /// <summary>Height of star field.</summary>
         public float height = 30f;
+        /// <summary>Size of individual stars.</summary>
         public float starSize = 0.05f;
-        public float parallax = 0.2f; // 0 — самый дальний, 1 — ближний
+        /// <summary>Parallax factor (0=furthest, 1=closest).</summary>
+        public float parallax = 0.2f;
+        /// <summary>Color of stars in this layer.</summary>
         public Color color = Color.white;
+        
         [HideInInspector] public Vector2[] stars;
-        // runtime cache
         [HideInInspector] public Mesh mesh;
         [HideInInspector] public GameObject layerObject;
         [HideInInspector] public Vector3[] vertices;
@@ -23,14 +49,20 @@ public class StarfieldParallax : MonoBehaviour
         [HideInInspector] public int totalStars;
     }
 
+    /// <summary>Camera to track for parallax calculation.</summary>
     public Camera targetCamera;
+    /// <summary>Array of star layer configurations.</summary>
     public StarLayer[] layers;
+    /// <summary>Material for star rendering.</summary>
     public Material starMaterial;
 
     private Mesh[] meshes;
     private MeshRenderer[] renderers;
     private GameObject[] layerObjects;
 
+    /// <summary>
+    /// Initializes layers on awake.
+    /// </summary>
     private void Awake()
     {
         if (targetCamera == null) targetCamera = Camera.main;
@@ -38,6 +70,9 @@ public class StarfieldParallax : MonoBehaviour
         InitLayers();
     }
 
+    /// <summary>
+    /// Creates layer GameObjects and meshes.
+    /// </summary>
     private void InitLayers()
     {
         // destroy previous auto-created children to avoid duplicates when running in editor multiple times

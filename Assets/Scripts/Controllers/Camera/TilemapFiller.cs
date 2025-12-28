@@ -1,31 +1,54 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+/// <summary>
+/// Fills a Tilemap from a sprite texture by slicing it into tiles.
+/// Useful for creating tilemap backgrounds from texture atlases.
+/// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>TilemapFiller is a utility for procedural tilemap generation.</para>
+/// <para>Key features:</para>
+/// <list type="bullet">
+///   <item>SLICING: Divides texture into gridSize x gridSize tiles.</item>
+///   <item>AUTO-FILL: Populates Tilemap with generated tiles.</item>
+///   <item>RUNTIME: Executes in Start() for runtime tile generation.</item>
+/// </list>
+/// <para>Configure gridSize to match your texture atlas layout.</para>
+/// </remarks>
 [RequireComponent(typeof(SpriteRenderer))]
 public class TilemapFiller : MonoBehaviour
 {
-    [SerializeField] private SpriteRenderer spriteRenderer; // Ссылка на SpriteRenderer с текстурой-тайлсетом
-    [SerializeField] private Tilemap tilemap; // Ссылка на Tilemap, которую нужно заполнить
-    [SerializeField] private Vector2Int gridSize = new Vector2Int(16, 16); // Размер сетки для нарезки текстуры на тайлы и для заполнения Tilemap
+    /// <summary>SpriteRenderer containing the source texture.</summary>
+    [SerializeField] private SpriteRenderer spriteRenderer;
+    
+    /// <summary>Target Tilemap to fill.</summary>
+    [SerializeField] private Tilemap tilemap;
+    
+    /// <summary>Grid dimensions for slicing texture and filling tilemap.</summary>
+    [SerializeField] private Vector2Int gridSize = new Vector2Int(16, 16);
 
+    /// <summary>
+    /// Slices texture and fills tilemap on start.
+    /// </summary>
     private void Start()
     {
         if (spriteRenderer == null)
         {
-            spriteRenderer = GetComponent<SpriteRenderer>(); // Если не назначено, ищем на том же объекте
+            spriteRenderer = GetComponent<SpriteRenderer>();
             if (spriteRenderer == null)
             {
-                Debug.LogError("SpriteRenderer не найден!");
+                Debug.LogError("SpriteRenderer not found!");
                 return;
             }
         }
 
         if (tilemap == null)
         {
-            tilemap = FindFirstObjectByType<Tilemap>(); // Ищем Tilemap в сцене, если не назначено
+            tilemap = FindFirstObjectByType<Tilemap>();
             if (tilemap == null)
             {
-                Debug.LogError("Tilemap не найден!");
+                Debug.LogError("Tilemap not found!");
                 return;
             }
         }
@@ -33,46 +56,35 @@ public class TilemapFiller : MonoBehaviour
         Texture2D texture = spriteRenderer.sprite.texture;
         if (texture == null)
         {
-            Debug.LogError("Текстура в SpriteRenderer не найдена!");
+            Debug.LogError("Texture in SpriteRenderer not found!");
             return;
         }
 
-        // Вычисляем размер тайла на основе размера текстуры и сетки
         int tileWidth = texture.width / gridSize.x;
         int tileHeight = texture.height / gridSize.y;
 
-        // Проверяем, что текстура делится на тайлы без остатка
         if (tileWidth == 0 || tileHeight == 0 || texture.width % gridSize.x != 0 || texture.height % gridSize.y != 0)
         {
-            Debug.LogError("Текстура не делится на тайлы без остатка на основе заданной сетки!");
+            Debug.LogError("Texture does not divide evenly into tiles based on grid!");
             return;
         }
 
-        // Создаем массив тайлов
         Tile[] tiles = new Tile[gridSize.x * gridSize.y];
         int index = 0;
 
-        // Исправляем порядок вычисления Rect для тайлов
-        for (int y = 0; y < gridSize.y; y++) // Верхний ряд теперь соответствует началу текстуры
+        for (int y = 0; y < gridSize.y; y++)
         {
             for (int x = 0; x < gridSize.x; x++)
             {
-                // Создаем Rect для тайла
                 Rect rect = new Rect(x * tileWidth, (gridSize.y - 1 - y) * tileHeight, tileWidth, tileHeight);
-
-                // Создаем спрайт из части текстуры
                 Sprite sprite = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), tileWidth);
-
-                // Создаем Tile
                 Tile tile = ScriptableObject.CreateInstance<Tile>();
                 tile.sprite = sprite;
-
                 tiles[index] = tile;
                 index++;
             }
         }
 
-        // Заполняем Tilemap тайлами по порядку
         index = 0;
         for (int y = 0; y < gridSize.y; y++)
         {
@@ -80,12 +92,10 @@ public class TilemapFiller : MonoBehaviour
             {
                 Tile tile = tiles[index];
                 index++;
-
-                // Устанавливаем тайл в позицию (x, -y, 0) для корректного отображения
                 tilemap.SetTile(new Vector3Int(x, -y, 0), tile);
             }
         }
 
-        Debug.Log("Tilemap успешно заполнен тайлами из текстуры с учётом исправлений!");
+        Debug.Log("Tilemap successfully filled with tiles from texture!");
     }
 }

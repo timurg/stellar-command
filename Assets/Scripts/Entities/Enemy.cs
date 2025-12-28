@@ -1,29 +1,62 @@
 using UnityEngine;
 
+/// <summary>
+/// Enemy ship that attacks the player's Carrier.
+/// Spawns at screen edges, approaches target, and orbits while attacking.
+/// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>Enemy is an AI-controlled hostile ship with orbital combat behavior.</para>
+/// <para>Key behaviors:</para>
+/// <list type="bullet">
+///   <item>SPAWNING: Uses SpawnAtEdge() to appear at random screen edge.</item>
+///   <item>APPROACH: Moves toward target until all weapons are in range.</item>
+///   <item>ORBITAL COMBAT: Once in range, orbits target while shooting.</item>
+///   <item>TARGETING: FindClosestShip() finds nearest Carrier.</item>
+///   <item>POOLING: Returns to EnemyPoolManager on death (never Destroy!).</item>
+/// </list>
+/// <para>Movement pattern: Approach → Orbit at random radius → Shoot</para>
+/// <para>Direction is set based on current behavior phase.</para>
+/// </remarks>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(BoxCollider2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class Enemy : Ship
 {
-    [SerializeField] private float spawnEdgeOffset = 10f; // Смещение от краёв экрана при спавне
-    [SerializeField] private float orbitRadiusMin = 2f; // Минимальный радиус орбиты
-    [SerializeField] private float orbitRadiusMax = 5f; // Максимальный радиус орбиты
-    [SerializeField] private float orbitAngularSpeed = Mathf.PI / 8f; // Угловая скорость орбиты
-    [SerializeField] private float courseCorrectionInterval = 0.7f; // Интервал корректировки курса
+    /// <summary>Offset from screen edges when spawning.</summary>
+    [SerializeField] private float spawnEdgeOffset = 10f;
+    
+    /// <summary>Minimum orbit radius around target.</summary>
+    [SerializeField] private float orbitRadiusMin = 2f;
+    
+    /// <summary>Maximum orbit radius around target.</summary>
+    [SerializeField] private float orbitRadiusMax = 5f;
+    
+    /// <summary>Angular speed for orbital movement (radians/sec).</summary>
+    [SerializeField] private float orbitAngularSpeed = Mathf.PI / 8f;
+    
+    /// <summary>Interval for course correction during orbit.</summary>
+    [SerializeField] private float courseCorrectionInterval = 0.7f;
 
-    private float orbitRadius; // Случайный радиус для каждого Enemy
-    private float orbitAngle = 0f; // Угол орбиты
-    private Vector2 smoothedOrbitDirection = Vector2.zero; // Буфер для сглаживания направления
-    private float courseCorrectionTimer = 0f; // Таймер для корректировки
+    private float orbitRadius;
+    private float orbitAngle = 0f;
+    private Vector2 smoothedOrbitDirection = Vector2.zero;
+    private float courseCorrectionTimer = 0f;
 
+    /// <summary>
+    /// Initializes enemy with random orbit radius and finds initial target.
+    /// </summary>
     protected override void Awake()
     {
         base.Awake();
-        orbitRadius = Random.Range(orbitRadiusMin, orbitRadiusMax); // Случайный радиус орбиты
-        courseCorrectionTimer = courseCorrectionInterval; // Начальное значение таймера
-        target = FindClosestShip(); // Поиск ближайшего Carrier как цели
+        orbitRadius = Random.Range(orbitRadiusMin, orbitRadiusMax);
+        courseCorrectionTimer = courseCorrectionInterval;
+        target = FindClosestShip();
     }
 
+    /// <summary>
+    /// Update loop - handles approach and orbital movement behavior.
+    /// </summary>
     protected override void Update()
     {
         base.Update();
@@ -33,14 +66,14 @@ public class Enemy : Ship
         Vector2 closestPoint = targetCollider.ClosestPoint(transform.position);
         float distanceToTarget = Vector2.Distance((Vector2)transform.position, closestPoint);
 
-        // Если не все орудия могут атаковать — сближаемся
         if (!AllWeaponsInRange(distanceToTarget))
         {
+            // Approach phase - move toward target
             Direction = (closestPoint - (Vector2)transform.position).normalized;
         }
         else
         {
-            // Орбитальное движение вокруг цели
+            // Orbital combat phase
             courseCorrectionTimer -= Time.deltaTime;
             if (courseCorrectionTimer <= 0f)
             {
@@ -56,6 +89,10 @@ public class Enemy : Ship
         }
     }
 
+    /// <summary>
+    /// Returns enemy to pool on death (with explosion effect).
+    /// NEVER calls Destroy - uses pooling!
+    /// </summary>
     protected override void OnDeath()
     {
         var explosion = ExplosionFXPoolManager.Instance.Get();
@@ -64,7 +101,10 @@ public class Enemy : Ship
         EnemyPoolManager.Instance.Return(this);
     }
 
-    // Метод для поиска ближайшего Carrier как цели
+    /// <summary>
+    /// Finds the closest Carrier as attack target.
+    /// </summary>
+    /// <returns>Nearest alive Carrier or null.</returns>
     private Ship FindClosestShip()
     {
         Ship[] ships = FindObjectsByType<Carrier>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -85,18 +125,30 @@ public class Enemy : Ship
         return closest;
     }
 
+    /// <summary>
+    /// Returns current target (simple implementation).
+    /// </summary>
+    /// <returns>Current target SpaceObject.</returns>
     protected override SpaceObject SelectTarget()
     {
-        return target; // Возвращаем текущую цель
+        return target;
     }
 
+    /// <summary>
+    /// Sets ship state with potential for additional Enemy-specific logic.
+    /// </summary>
+    /// <param name="newState">New ship state.</param>
     public override void SetState(ShipState newState)
     {
         base.SetState(newState);
-        // Дополнительная логика для Enemy
     }
 
-    public void SpawnAtEdge(int edge = -1  )
+    /// <summary>
+    /// Spawns enemy at random screen edge and resets state.
+    /// Used by EnemyPoolManager when getting enemy from pool.
+    /// </summary>
+    /// <param name="edge">Edge index (0-3: left, right, top, bottom). -1 for random.</param>
+    public void SpawnAtEdge(int edge = -1)
     {
         Vector2 screenBounds = Camera.main.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));
         if (edge == -1) edge = Random.Range(0, 4);
@@ -109,11 +161,11 @@ public class Enemy : Ship
             case 3: spawnPos = new Vector2(Random.Range(-screenBounds.x, screenBounds.x), -screenBounds.y - spawnEdgeOffset); break;
         }
         transform.position = spawnPos;
-        SetAlive(true); // Восстанавливаем состояние
-        Health = maxHealth; // Восстанавливаем здоровье
-        shields = maxShields; // Восстанавливаем щиты
-        SetState(ShipState.PATROL); // Устанавливаем начальное состояние
-        orbitAngle = Random.Range(0f, 2f * Mathf.PI); // Случайный стартовый угол орбиты
-        courseCorrectionTimer = 0f; // Сбрасываем таймер при спавне
+        SetAlive(true);
+        Health = maxHealth;
+        shields = maxShields;
+        SetState(ShipState.PATROL);
+        orbitAngle = Random.Range(0f, 2f * Mathf.PI);
+        courseCorrectionTimer = 0f;
     }
 }

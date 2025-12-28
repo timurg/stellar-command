@@ -2,16 +2,43 @@ using UnityEngine;
 using System;
 using System.Collections;
 
+/// <summary>
+/// Pool manager for Enemy instances. Also handles wave spawning logic.
+/// Registers enemies with AdmiralProtection on activate/deactivate.
+/// </summary>
+/// <remarks>
+/// <para><b>AI Agent Notes:</b></para>
+/// <para>EnemyPoolManager manages enemy lifecycle AND wave spawning.</para>
+/// <para>Key responsibilities:</para>
+/// <list type="bullet">
+///   <item>POOLING: Standard pool Get/Return for Enemy objects.</item>
+///   <item>WAVE SPAWNING: Timer-based waves with increasing difficulty.</item>
+///   <item>ADMIRAL INTEGRATION: AddEnemy/RemoveEnemy on activate/deactivate.</item>
+///   <item>EVENT: OnWaveSpawned fires when new wave starts.</item>
+/// </list>
+/// <para>Wave formula: enemiesPerWave + addEnemiesPerWave * (waveNumber - 1)</para>
+/// <para>Access: EnemyPoolManager.Instance</para>
+/// </remarks>
 public class EnemyPoolManager : EntityPoolManager<Enemy>, IPoolManager<Enemy>
 {
-    [SerializeField] private float waveInterval = 10f; // Интервал между волнами
-    [SerializeField] private int enemiesPerWave = 3; // Врагов в волне
-    [SerializeField] private int waweNumber = 0; // Врагов в волне
-    [SerializeField] private int addEnemiesPerWave = 1; // Врагов в волне
+    /// <summary>Time between wave spawns.</summary>
+    [SerializeField] private float waveInterval = 10f;
+    
+    /// <summary>Base number of enemies per wave.</summary>
+    [SerializeField] private int enemiesPerWave = 3;
+    
+    /// <summary>Current wave number.</summary>
+    [SerializeField] private int waweNumber = 0;
+    
+    /// <summary>Additional enemies per wave (scaling).</summary>
+    [SerializeField] private int addEnemiesPerWave = 5;
 
     private AdmiralProtection admiralProtection;
 
-protected override void Awake()
+    /// <summary>
+    /// Initializes pool and finds AdmiralProtection.
+    /// </summary>
+    protected override void Awake()
     {
         base.Awake();
         admiralProtection = FindFirstObjectByType<AdmiralProtection>();
@@ -21,13 +48,17 @@ protected override void Awake()
             enabled = false;
             return;
         }
-        //admiralProtection.OnAdmiralDestroyed += HandleAdmiralDestroyed;
-        waveTimer = waveInterval; // Инициализация таймера волны
+        waveTimer = waveInterval;
     } 
 
     private float waveTimer = 0f;
-    public event Action<int> OnWaveSpawned; // Событие для уведомления о спавне волны
+    
+    /// <summary>Event fired when a wave spawns. Parameter is wave number.</summary>
+    public event Action<int> OnWaveSpawned;
 
+    /// <summary>
+    /// Update loop - handles wave spawn timing.
+    /// </summary>
     private void Update()
     {
         waveTimer -= Time.deltaTime;
@@ -38,24 +69,39 @@ protected override void Awake()
         }
     }
 
+    /// <summary>
+    /// Activates enemy and registers with AdmiralProtection.
+    /// </summary>
+    /// <param name="entity">Enemy being activated.</param>
     override protected void ActivateEntity(Enemy entity)
     {
         base.ActivateEntity(entity);
-        admiralProtection.AddEnemy(entity); // Назначаем цель
+        admiralProtection.AddEnemy(entity);
     }
 
+    /// <summary>
+    /// Deactivates enemy and unregisters from AdmiralProtection.
+    /// </summary>
+    /// <param name="entity">Enemy being deactivated.</param>
     override protected void DeactivateEntity(Enemy entity)
     {
         base.DeactivateEntity(entity);
-        admiralProtection.RemoveEnemy(entity); // Убираем цель
+        admiralProtection.RemoveEnemy(entity);
     }
 
+    /// <summary>
+    /// Destroys enemy and unregisters from AdmiralProtection.
+    /// </summary>
+    /// <param name="entity">Enemy being destroyed.</param>
     protected override void DestroyEntity(Enemy entity)
     {
         base.DestroyEntity(entity);
-        admiralProtection.RemoveEnemy(entity); // Убираем цель
+        admiralProtection.RemoveEnemy(entity);
     }
 
+    /// <summary>
+    /// Coroutine to spawn wave of enemies with staggered timing.
+    /// </summary>
     private IEnumerator SpawnWave()
     {
         waweNumber++;
@@ -64,7 +110,7 @@ protected override void Awake()
         OnWaveSpawned?.Invoke(waweNumber);
         for (int i = 0; i < (enemiesPerWave + addEnemiesPerWave * (waweNumber - 1)); i++)
         {
-            yield return new WaitForSeconds(UnityEngine.Random.Range(0, 1f)); // Небольшая задержка между спавном врагов
+            yield return new WaitForSeconds(UnityEngine.Random.Range(0, 1f));
             Enemy enemy = Get();
             enemy.SpawnAtEdge(direction);
         }
